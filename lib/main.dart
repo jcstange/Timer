@@ -1,11 +1,20 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:soundpool/soundpool.dart';
 
 void main() {
   runApp(MyApp());
+}
+
+class MyColors {
+  Color royalBlue = Color(0xFF0A2463);
+  Color tuftsBlue = Color(0xFF3E92CC);
+  Color snow = Color(0xFFFFFAFF);
+  Color cerise = Color(0xFFD8315B);
+  Color blackChocolate = Color(0xFF1E1B18);
 }
 
 class MyApp extends StatelessWidget {
@@ -15,7 +24,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Timer',
       theme: ThemeData(
-        primaryColor: Color(0xFF005073),
+        primaryColor: MyColors().blackChocolate,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: MyHomePage(title: 'Timer List'),
@@ -39,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
   }
 
-  void setUpDialog(){
+  void setUpDialog() {
     print("setUpDialog");
     var nameEditText = MyEditText(initialValue: "Default Timer");
     var durationEditText = MyEditText(
@@ -50,38 +59,31 @@ class _MyHomePageState extends State<MyHomePage> {
     showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("I'm your new timer, set me up!"),
-          content: Column(
-            children: <Widget> [
-              nameEditText,
-              durationEditText
-            ]),
-          actions: [
-            FlatButton(
-                onPressed: () {
-                  _addTimer(
-                      nameEditText.state.initialValue,
-                      int.parse(durationEditText.state.initialValue)
-                  );
-                  Navigator.of(context).pop();
-                },
-                child: Text("Start")
+              title: Text("I'm your new timer, set me up!"),
+              content:
+                  Column(children: <Widget>[nameEditText, durationEditText]),
+              actions: [
+                FlatButton(
+                    onPressed: () {
+                      _addTimer(nameEditText.state.initialValue,
+                          int.parse(durationEditText.state.initialValue));
+                      Navigator.of(context).pop();
+                    },
+                    child: Text("Start")),
+                FlatButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text("Cancel")),
+              ],
             ),
-            FlatButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text("Cancel")
-            ),
-          ],),
-        barrierDismissible: false 
-    );
+        barrierDismissible: false);
   }
+
   void _addTimer(String title, int duration) {
     setState(() {
       listTimer.add(MyTimer(
           myHomePageState: this,
           title: title,
-          timer: Duration(minutes: duration))
-      );
+          timer: Duration(minutes: duration)));
     });
   }
 
@@ -100,12 +102,12 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Container(
           child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: listTimer.length,
-            itemBuilder: (BuildContext context, int i) {
-              return listTimer[i];
-            },)
-      ),
+        shrinkWrap: true,
+        itemCount: listTimer.length,
+        itemBuilder: (BuildContext context, int i) {
+          return listTimer[i];
+        },
+      )),
       floatingActionButton: FloatingActionButton(
         onPressed: () => setUpDialog(),
         tooltip: 'Increment',
@@ -119,43 +121,62 @@ class MyTimer extends StatefulWidget {
   String title;
   Duration timer;
   _MyHomePageState myHomePageState;
-  MyTimer({Key key, this.myHomePageState, this.title, this.timer}) : super(key: key);
+
+  MyTimer({Key key, this.myHomePageState, this.title, this.timer})
+      : super(key: key);
 
   @override
   _MyTimerState createState() => _MyTimerState();
 }
 
 class _MyTimerState extends State<MyTimer> {
-  DateTime start;
+  DateTime start = DateTime.now();
   DateTime end;
-  Duration left;
-  String timeLeft;
+  Duration remaining;
+  Duration paused = Duration(milliseconds: 0);
+  DateTime pauseStart;
+  DateTime pauseEnd;
   Duration elapsed;
   StreamSubscription listenToSeconds;
   Sound sound;
   Future<int> soundId;
+  bool ongoing = false;
+  bool ended = false;
 
   @override
   void initState() {
-    sound = Sound();
-    sound.init();
-    soundId = sound.loadSound();
-    startTimer();
     super.initState();
   }
 
   void startTimer() {
-    start = DateTime.now();
-    listenToSeconds = Second().second.stream.listen((second) {
-      setState(() {
-        timeLeft = getTimeLeftString();
-        if (getTimeLeft().inMilliseconds <= 0) {
-          endTimer();
-          sound.playSound(soundId);
-          listenToSeconds.cancel();
-        }
+    if (listenToSeconds == null) {
+      start = DateTime.now();
+      var lastTime = DateTime.now();
+      listenToSeconds = Second().second.stream.listen((second) {
+        setState(() {
+          if (ongoing) {
+            if (getRemainingTime().inMilliseconds <= 0) {
+              endTimer();
+              sound.playSound(soundId);
+              ongoing = false;
+              ended = true;
+            }
+          } else {
+            var elapsedTime = DateTime.now().millisecondsSinceEpoch -
+                lastTime.millisecondsSinceEpoch;
+            paused = paused + Duration(milliseconds: elapsedTime);
+          }
+          lastTime = DateTime.now();
+        });
       });
-    });
+    }
+  }
+
+  void resetTimer() {
+    paused = Duration(milliseconds: 0);
+    ended = false;
+    listenToSeconds.cancel();
+    listenToSeconds = null;
   }
 
   void endTimer() {
@@ -169,30 +190,67 @@ class _MyTimerState extends State<MyTimer> {
     widget.myHomePageState.deleteTimer(widget);
   }
 
-  String getTimeLeftString() {
-    var timeLeft = getTimeLeft();
-    if(timeLeft.isNegative) return "0:00:00";
+  void play() {
+    print("play");
+    startTimer();
+    sound = Sound();
+    sound.init();
+    soundId = sound.loadSound();
+    ongoing = true;
+  }
+
+  void pause() {
+    print("pause");
+    pauseStart = DateTime.now();
+    ongoing = false;
+  }
+
+  void replay() {
+    resetTimer();
+    play();
+  }
+
+  Duration getRemainingTime() {
+    return Duration(
+        milliseconds: widget.timer.inMilliseconds -
+            (getElapsedTime().inMilliseconds - getPausedTime().inMilliseconds));
+  }
+
+  String getTimeString(Duration duration) {
+    if (duration.isNegative) return "00";
     String twoDigits(int n) {
       if (n >= 10) return "$n";
       return "0$n";
     }
 
-    String twoDigitMinutes = twoDigits(timeLeft.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(timeLeft.inSeconds.remainder(60));
-    return "${timeLeft.inHours}:$twoDigitMinutes:$twoDigitSeconds";
-  }
-
-  Duration getTimeLeft() {
-    return Duration(
-        milliseconds: widget.timer.inMilliseconds - getElapsedTime().inMilliseconds);
+    String twoDigitMinutes =
+    twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds =
+    twoDigits(duration.inSeconds.remainder(60));
+    if(duration.inMinutes >= 60) {
+      return "${duration.inHours}:$twoDigitMinutes:$twoDigitSeconds";
+    } else if (duration.inSeconds >= 60) {
+      return "$twoDigitMinutes:$twoDigitSeconds";
+    } else {
+      return "$twoDigitSeconds";
+    }
   }
 
   Duration getElapsedTime() {
     return Duration(
-        milliseconds: DateTime
-            .now()
-            .millisecondsSinceEpoch -
+        milliseconds: DateTime.now().millisecondsSinceEpoch -
             start.millisecondsSinceEpoch);
+  }
+
+  Duration getPausedTime() {
+    return paused;
+  }
+
+  double percentageTimeLeft() {
+    var totalTime = widget.timer.inMilliseconds;
+    var percentage = (getRemainingTime().inMilliseconds / totalTime).toDouble();
+    print(percentage);
+    return percentage;
   }
 
   @override
@@ -202,37 +260,74 @@ class _MyTimerState extends State<MyTimer> {
         padding: EdgeInsets.all(15),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: Color(0xFF189AD3),
+          color: ended ? MyColors().blackChocolate : MyColors().royalBlue,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Expanded(
-                child: Text(
-                  widget.title,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.grey[100]
-                  ),
-
-                )),
-            Expanded(
-                child: Text(
-                  getTimeLeftString(),
+            Stack(
+              alignment: AlignmentDirectional.center,
+              children: <Widget>[
+                Container(
+                    width: 100,
+                    height: 100,
+                    child: CircularProgressIndicator(
+                      value: percentageTimeLeft(),
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(MyColors().cerise),
+                    )),
+                Expanded(
+                    child: Text(
+                  getTimeString(getRemainingTime()),
                   textAlign: TextAlign.end,
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: Colors.grey[100]
-                  ),
+                      color: MyColors().snow),
                 )),
+              ],
+            ),
             Expanded(
+                flex: 5,
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      Text(
+                        widget.title,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: MyColors().snow),
+                      ),
+                      Text(
+                        getTimeString(widget.timer),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: MyColors().snow),
+                      ),
+                    ])),
+            Expanded(
+                flex: 2,
+                child: FlatButton(
+                    onPressed: () =>
+                        ongoing ? pause() : ended ? replay() : play(),
+                    child: Icon(
+                      ongoing
+                          ? Icons.pause_circle_filled
+                          : ended ? Icons.replay : Icons.play_circle_filled,
+                      color: MyColors().snow,
+                    ))),
+            Expanded(
+                flex: 2,
                 child: FlatButton(
                     onPressed: () => delete(),
-                    child: Icon(Icons.delete_forever,color: Colors.grey[100],)
-                )),
+                    child: Icon(
+                      Icons.delete_forever,
+                      color: MyColors().snow,
+                    ))),
           ],
         ));
   }
@@ -275,13 +370,14 @@ class MyEditText extends StatefulWidget {
   final String initialValue;
   final int maxLength;
   final TextInputType inputType;
-  MyEditText({Key key, this.initialValue, this.maxLength, this.inputType}) : super(key: key);
+
+  MyEditText({Key key, this.initialValue, this.maxLength, this.inputType})
+      : super(key: key);
 
   _MyEditTextState state;
 
   @override
   _MyEditTextState createState() => state = _MyEditTextState();
-
 }
 
 class _MyEditTextState extends State<MyEditText> {
@@ -297,46 +393,44 @@ class _MyEditTextState extends State<MyEditText> {
   }
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return _isEditingText
         ? TextField(
-        maxLines: 1,
-        maxLength: widget.maxLength ?? 25,
-        keyboardType: widget.inputType ?? TextInputType.text,
-        onTap: () {
-          setState(() {
-            if(_isEditingText == false) {
-              initialValue = "";
-              _isEditingText = true;
-            }
-          });
-        },
-        onChanged: (newValue) {
-          setState(() {
-            print(newValue);
-            initialValue = newValue;
-          });
-
-        },
-        onSubmitted: (newValue) {
-          setState(() {
-            initialValue = newValue;
-            _isEditingText = false;
-          });
-        },
-        autofocus: true,
-        controller: _editingController
-    )
+            maxLines: 1,
+            maxLength: widget.maxLength ?? 25,
+            keyboardType: widget.inputType ?? TextInputType.text,
+            onTap: () {
+              setState(() {
+                if (_isEditingText == false) {
+                  initialValue = "";
+                  _isEditingText = true;
+                }
+              });
+            },
+            onChanged: (newValue) {
+              setState(() {
+                print(newValue);
+                initialValue = newValue;
+              });
+            },
+            onSubmitted: (newValue) {
+              setState(() {
+                initialValue = newValue;
+                _isEditingText = false;
+              });
+            },
+            autofocus: true,
+            controller: _editingController)
         : InkWell(
-        onTap: () {
-          setState(() {
-            _isEditingText = true;
-          });
-        },
-        child: Text(initialValue,style: TextStyle(
-          color: Colors.black,
-          fontSize: 18.0,
-        ))
-    );
+            onTap: () {
+              setState(() {
+                _isEditingText = true;
+              });
+            },
+            child: Text(initialValue,
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 18.0,
+                )));
   }
 }
