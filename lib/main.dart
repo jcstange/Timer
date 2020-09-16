@@ -1,20 +1,18 @@
 import 'dart:async';
+import 'dart:math';
 
+import 'package:Timer/Cards/TimesUpCard.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:soundpool/soundpool.dart';
+
+import 'Entities.dart';
+import 'Repository.dart';
+import 'TimesUpColors.dart';
+import 'UIComponents/TimesUpEditText.dart';
 
 void main() {
   runApp(MyApp());
-}
-
-class MyColors {
-  Color royalBlue = Color(0xFF0A2463);
-  Color tuftsBlue = Color(0xFF3E92CC);
-  Color snow = Color(0xFFFFFAFF);
-  Color cerise = Color(0xFFD8315B);
-  Color blackChocolate = Color(0xFF1E1B18);
 }
 
 class MyApp extends StatelessWidget {
@@ -22,12 +20,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Timer',
+      title: 'TimesUp',
       theme: ThemeData(
-        primaryColor: MyColors().blackChocolate,
+        primaryColor: TimesUpColors().blackChocolate,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: MyHomePage(title: 'Timer List'),
+      home: MyHomePage(title: 'TimesUp'),
     );
   }
 }
@@ -37,21 +35,38 @@ class MyHomePage extends StatefulWidget {
   final String title;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  MyHomePageState createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  List<MyTimer> listTimer = [];
+class MyHomePageState extends State<MyHomePage> {
+  List<TimesUpCard> listTimer = [];
 
   @override
   void initState() {
     super.initState();
+    loadUser();
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    Future.delayed(Duration(milliseconds: 2000), () => loadUser());
+  }
+
+  Future<void> loadUser() {
+    return getUser("jcstange@gmail.com").then((value) {
+      print("Repository Users -> $value");
+      print("username: ${value.username}");
+      print("email: ${value.email}");
+      print("items: ${value.items}");
+      parseItems(value.items);
+    });
   }
 
   void setUpDialog() {
     print("setUpDialog");
-    var nameEditText = MyEditText(initialValue: "Default Timer");
-    var durationEditText = MyEditText(
+    var nameEditText = TimesUpEditText(initialValue: "Default Timer");
+    var durationEditText = TimesUpEditText(
       initialValue: "5",
       maxLength: 2,
       inputType: TextInputType.number,
@@ -65,9 +80,21 @@ class _MyHomePageState extends State<MyHomePage> {
               actions: [
                 FlatButton(
                     onPressed: () {
-                      _addTimer(nameEditText.state.initialValue,
-                          int.parse(durationEditText.state.initialValue));
+                      addItem(
+                          "jcstange@gmail.com",
+                          Item(
+                              id: Random().nextInt(1000000),
+                              name: nameEditText.state.initialValue,
+                              sessionDuration: int.parse(
+                                      durationEditText.state.initialValue) *
+                                  60 *
+                                  1000,
+                              sessions: 1,
+                              restDuration: 0,
+                              startTime: 0,
+                              endTime: 0));
                       Navigator.of(context).pop();
+                      reassemble();
                     },
                     child: Text("Start")),
                 FlatButton(
@@ -78,19 +105,17 @@ class _MyHomePageState extends State<MyHomePage> {
         barrierDismissible: false);
   }
 
-  void _addTimer(String title, int duration) {
+  void _addTimer(String title, Item item) {
     setState(() {
-      listTimer.add(MyTimer(
-          myHomePageState: this,
-          title: title,
-          timer: Duration(minutes: duration)));
+      listTimer.add(TimesUpCard(myHomePageState: this, item: item));
     });
   }
 
-  void deleteTimer(MyTimer timer) {
+  void deleteTimer(TimesUpCard timer) {
     setState(() {
       print("deleting ${timer.title}");
-      listTimer.remove(timer);
+      removeItem("jcstange@gmail.com", timer.item);
+      reassemble();
     });
   }
 
@@ -101,13 +126,15 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Container(
-          child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: listTimer.length,
-        itemBuilder: (BuildContext context, int i) {
-          return listTimer[i];
-        },
-      )),
+          child: RefreshIndicator(
+              onRefresh: () => loadUser(),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: listTimer.length,
+                itemBuilder: (BuildContext context, int i) {
+                  return listTimer[i];
+                },
+              ))),
       floatingActionButton: FloatingActionButton(
         onPressed: () => setUpDialog(),
         tooltip: 'Increment',
@@ -115,322 +142,22 @@ class _MyHomePageState extends State<MyHomePage> {
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
-}
 
-class MyTimer extends StatefulWidget {
-  String title;
-  Duration timer;
-  _MyHomePageState myHomePageState;
-
-  MyTimer({Key key, this.myHomePageState, this.title, this.timer})
-      : super(key: key);
-
-  @override
-  _MyTimerState createState() => _MyTimerState();
-}
-
-class _MyTimerState extends State<MyTimer> {
-  DateTime start = DateTime.now();
-  DateTime end;
-  Duration remaining;
-  Duration paused = Duration(milliseconds: 0);
-  DateTime pauseStart;
-  DateTime pauseEnd;
-  Duration elapsed;
-  StreamSubscription listenToSeconds;
-  Sound sound;
-  Future<int> soundId;
-  bool ongoing = false;
-  bool ended = false;
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  void startTimer() {
-    if (listenToSeconds == null) {
-      start = DateTime.now();
-      var lastTime = DateTime.now();
-      listenToSeconds = Second().second.stream.listen((second) {
-        setState(() {
-          if (ongoing) {
-            if (getRemainingTime().inMilliseconds <= 0) {
-              endTimer();
-              sound.playSound(soundId);
-              ongoing = false;
-              ended = true;
-            }
-          } else {
-            var elapsedTime = DateTime.now().millisecondsSinceEpoch -
-                lastTime.millisecondsSinceEpoch;
-            paused = paused + Duration(milliseconds: elapsedTime);
-          }
-          lastTime = DateTime.now();
-        });
-      });
+  void parseItems(List<Item> items) {
+    if(items.isEmpty) {
+      setState(() => listTimer.clear());
+      return;
     }
-  }
-
-  void resetTimer() {
-    paused = Duration(milliseconds: 0);
-    ended = false;
-    listenToSeconds.cancel();
-    listenToSeconds = null;
-  }
-
-  void endTimer() {
-    end = DateTime.now();
-  }
-
-  void delete() {
-    print("delete ${widget.title}");
-    endTimer();
-    listenToSeconds.cancel();
-    widget.myHomePageState.deleteTimer(widget);
-  }
-
-  void play() {
-    print("play");
-    startTimer();
-    sound = Sound();
-    sound.init();
-    soundId = sound.loadSound();
-    ongoing = true;
-  }
-
-  void pause() {
-    print("pause");
-    pauseStart = DateTime.now();
-    ongoing = false;
-  }
-
-  void replay() {
-    resetTimer();
-    play();
-  }
-
-  Duration getRemainingTime() {
-    return Duration(
-        milliseconds: widget.timer.inMilliseconds -
-            (getElapsedTime().inMilliseconds - getPausedTime().inMilliseconds));
-  }
-
-  String getTimeString(Duration duration) {
-    if (duration.isNegative) return "00";
-    String twoDigits(int n) {
-      if (n >= 10) return "$n";
-      return "0$n";
-    }
-
-    String twoDigitMinutes =
-    twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds =
-    twoDigits(duration.inSeconds.remainder(60));
-    if(duration.inMinutes >= 60) {
-      return "${duration.inHours}:$twoDigitMinutes:$twoDigitSeconds";
-    } else if (duration.inSeconds >= 60) {
-      return "$twoDigitMinutes:$twoDigitSeconds";
-    } else {
-      return "$twoDigitSeconds";
-    }
-  }
-
-  Duration getElapsedTime() {
-    return Duration(
-        milliseconds: DateTime.now().millisecondsSinceEpoch -
-            start.millisecondsSinceEpoch);
-  }
-
-  Duration getPausedTime() {
-    return paused;
-  }
-
-  double percentageTimeLeft() {
-    var totalTime = widget.timer.inMilliseconds;
-    var percentage = (getRemainingTime().inMilliseconds / totalTime).toDouble();
-    print(percentage);
-    return percentage;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-        margin: EdgeInsets.symmetric(vertical: 5, horizontal: 5),
-        padding: EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: ended ? MyColors().blackChocolate : MyColors().royalBlue,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Stack(
-              alignment: AlignmentDirectional.center,
-              children: <Widget>[
-                Container(
-                    width: 100,
-                    height: 100,
-                    child: CircularProgressIndicator(
-                      value: percentageTimeLeft(),
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(MyColors().cerise),
-                    )),
-                Expanded(
-                    child: Text(
-                  getTimeString(getRemainingTime()),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: MyColors().snow),
-                )),
-              ],
-            ),
-            Expanded(
-                flex: 5,
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Text(
-                        widget.title,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: MyColors().snow),
-                      ),
-                      Text(
-                        getTimeString(widget.timer),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: MyColors().snow),
-                      ),
-                    ])),
-            Expanded(
-                flex: 2,
-                child: FlatButton(
-                    onPressed: () =>
-                        ongoing ? pause() : ended ? replay() : play(),
-                    child: Icon(
-                      ongoing
-                          ? Icons.pause_circle_filled
-                          : ended ? Icons.replay : Icons.play_circle_filled,
-                      color: MyColors().snow,
-                    ))),
-            Expanded(
-                flex: 2,
-                child: FlatButton(
-                    onPressed: () => delete(),
-                    child: Icon(
-                      Icons.delete_forever,
-                      color: MyColors().snow,
-                    ))),
-          ],
-        ));
-  }
-}
-
-class Sound {
-  Soundpool soundPool;
-
-  void init() {
-    instantiate();
-  }
-
-  Future<void> instantiate() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    soundPool = Soundpool();
-  }
-
-  Future<int> loadSound() async {
-    var asset = await rootBundle.load("assets/sounds/widefngr.wav");
-    return await soundPool.load(asset);
-  }
-
-  Future<void> playSound(Future<int> soundId) async {
-    var _sound = await soundId;
-    await soundPool.play(_sound);
-  }
-}
-
-class Second {
-  StreamController<void> second = StreamController();
-
-  Second() {
-    Timer.periodic(Duration(milliseconds: 1000), (t) {
-      second.add("");
+    items.forEach((item) {
+      if (!listTimer.map((e) => e.item.id).toList().contains(item.id)) {
+        _addTimer(item.name, item);
+      }
     });
-  }
-}
-
-class MyEditText extends StatefulWidget {
-  final String initialValue;
-  final int maxLength;
-  final TextInputType inputType;
-
-  MyEditText({Key key, this.initialValue, this.maxLength, this.inputType})
-      : super(key: key);
-
-  _MyEditTextState state;
-
-  @override
-  _MyEditTextState createState() => state = _MyEditTextState();
-}
-
-class _MyEditTextState extends State<MyEditText> {
-  String initialValue;
-  var _isEditingText = true;
-  var _editingController;
-
-  @override
-  void initState() {
-    initialValue = widget.initialValue;
-    _editingController = TextEditingController(text: initialValue);
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _isEditingText
-        ? TextField(
-            maxLines: 1,
-            maxLength: widget.maxLength ?? 25,
-            keyboardType: widget.inputType ?? TextInputType.text,
-            onTap: () {
-              setState(() {
-                if (_isEditingText == false) {
-                  initialValue = "";
-                  _isEditingText = true;
-                }
-              });
-            },
-            onChanged: (newValue) {
-              setState(() {
-                print(newValue);
-                initialValue = newValue;
-              });
-            },
-            onSubmitted: (newValue) {
-              setState(() {
-                initialValue = newValue;
-                _isEditingText = false;
-              });
-            },
-            autofocus: true,
-            controller: _editingController)
-        : InkWell(
-            onTap: () {
-              setState(() {
-                _isEditingText = true;
-              });
-            },
-            child: Text(initialValue,
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 18.0,
-                )));
+    //Removing deleted timers
+    var toDelete = listTimer.where((e) => !items.map((item) => item.id).toList().contains(e.item.id));
+    toDelete.forEach((element) { print("deleting ${element.item.id}"); });
+    setState(() =>
+        listTimer.removeWhere((e) => !items.map((item) => item.id).toList().contains(e.item.id))
+    );
   }
 }
