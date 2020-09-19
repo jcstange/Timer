@@ -68,13 +68,18 @@ class MyHomePageState extends State<MyHomePage> {
     var nameEditText = TimesUpEditText(initialValue: "Default Timer");
     var durationEditText = TimesUpEditText(
       initialValue: "5",
-      maxLength: 2,
+      maxLength: 3,
       inputType: TextInputType.number,
     );
     showDialog(
         context: context,
         builder: (_) => AlertDialog(
-              title: Text("I'm your new timer, set me up!"),
+              title: Text(
+                "I'm your new timer, set me up!",
+                style: TextStyle(
+                  fontFamily: "Nunito"
+                ),
+              ),
               content:
                   Column(children: <Widget>[nameEditText, durationEditText]),
               actions: [
@@ -125,6 +130,7 @@ class MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
+      backgroundColor: TimesUpColors().cloud,
       body: Container(
           child: RefreshIndicator(
               onRefresh: () => loadUser(),

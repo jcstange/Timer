@@ -1,22 +1,21 @@
-
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
+import '../Entities.dart';
+import '../Repository.dart';
 import '../Sound.dart';
 import '../Tick.dart';
-import '../Repository.dart';
 import '../TimesUpColors.dart';
 import '../main.dart';
-import '../Entities.dart';
 
 class TimesUpCard extends StatefulWidget {
   String title;
   Item item;
   MyHomePageState myHomePageState;
 
-  TimesUpCard({Key key, this.myHomePageState, this.item})
-      : super(key: key);
+  TimesUpCard({Key key, this.myHomePageState, this.item}) : super(key: key);
 
   @override
   _TimesUpCardState createState() => _TimesUpCardState();
@@ -81,7 +80,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
   void delete() {
     print("delete ${widget.item.name}");
     endTimer();
-    if(listenToSeconds != null) listenToSeconds.cancel();
+    if (listenToSeconds != null) listenToSeconds.cancel();
     widget.myHomePageState.deleteTimer(widget);
   }
 
@@ -93,7 +92,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
     soundId = sound.loadSound();
     ongoing = true;
     widget.item.startTime = DateTime.now().millisecondsSinceEpoch;
-    updateItem("jcstange@gmail.com",widget.item);
+    updateItem("jcstange@gmail.com", widget.item);
   }
 
   void pause() {
@@ -108,9 +107,13 @@ class _TimesUpCardState extends State<TimesUpCard> {
   }
 
   Duration getRemainingTime() {
-    return Duration(
-        milliseconds: widget.item.sessionDuration -
-            (getElapsedTime().inMilliseconds - getPausedTime().inMilliseconds));
+    var remainingTime;
+    if (ongoing) {
+      remainingTime = Duration(
+          milliseconds: widget.item.sessionDuration -
+              (getElapsedTime().inMilliseconds - getPausedTime().inMilliseconds));
+    } else remainingTime = Duration(milliseconds: widget.item.sessionDuration);
+    return remainingTime;
   }
 
   String getTimeString(Duration duration) {
@@ -151,37 +154,42 @@ class _TimesUpCardState extends State<TimesUpCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-        margin: EdgeInsets.symmetric(vertical: 5, horizontal: 5),
-        padding: EdgeInsets.all(15),
+        margin: EdgeInsets.symmetric(vertical: 8, horizontal:16),
+        padding: EdgeInsets.all(25),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: ended
-              ? TimesUpColors().blackChocolate
-              : TimesUpColors().royalBlue,
+          color: ongoing ? TimesUpColors().bloom : ended ? TimesUpColors().blackChocolate : TimesUpColors().snow,
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
             Stack(
               alignment: AlignmentDirectional.center,
               children: <Widget>[
                 Container(
                     width: 100,
-                    height: 100,
-                    child: CircularProgressIndicator(
-                      value: percentageTimeLeft(),
-                      valueColor:
-                      AlwaysStoppedAnimation<Color>(TimesUpColors().cerise),
-                    )),
-                Expanded(
-                    child: Text(
-                      getTimeString(getRemainingTime()),
-                      textAlign: TextAlign.end,
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: TimesUpColors().snow),
-                    )),
+                    height:100,
+                    child: Stack(
+                        alignment: Alignment.center,
+                        children: <Widget> [
+                          Container(
+                              width: 100,
+                              height: 100,
+                              child: CircularProgressIndicator(
+                                value: percentageTimeLeft(),
+                                valueColor: AlwaysStoppedAnimation<Color>(TimesUpColors().cerise),
+                              )
+                          ),
+                          Text(
+                            getTimeString(getRemainingTime()),
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                                fontFamily: 'Nunito',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: TimesUpColors().royalBlue),
+                          )
+                        ])),
               ],
             ),
             Expanded(
@@ -193,17 +201,20 @@ class _TimesUpCardState extends State<TimesUpCard> {
                         widget.item.name,
                         textAlign: TextAlign.center,
                         style: TextStyle(
+                            fontFamily: 'Nunito',
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: TimesUpColors().snow),
+                            color: TimesUpColors().royalBlue),
                       ),
                       Text(
-                        getTimeString(Duration(milliseconds: widget.item.sessionDuration)),
+                        getTimeString(Duration(
+                            milliseconds: widget.item.sessionDuration)),
                         textAlign: TextAlign.center,
                         style: TextStyle(
+                            fontFamily: 'Nunito',
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: TimesUpColors().snow),
+                            color: TimesUpColors().royalBlue),
                       ),
                     ])),
             Expanded(
@@ -214,19 +225,21 @@ class _TimesUpCardState extends State<TimesUpCard> {
                     child: Icon(
                       ongoing
                           ? Icons.pause_circle_filled
-                          : ended ? Icons.replay : Icons.play_circle_filled,
-                      color: TimesUpColors().snow,
+                          : ended
+                          ? Icons.replay
+                          : Icons.play_circle_filled,
+                      color: TimesUpColors().royalBlue,
                     ))),
             Expanded(
                 flex: 2,
                 child: FlatButton(
                     onPressed: () {
                       delete();
-                      removeItem("jcstange@gmail.com",widget.item);
+                      removeItem("jcstange@gmail.com", widget.item);
                     },
                     child: Icon(
                       Icons.delete_forever,
-                      color: TimesUpColors().snow,
+                      color: TimesUpColors().royalBlue,
                     ))),
           ],
         ));

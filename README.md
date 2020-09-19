@@ -1,16 +1,6 @@
-# Timer
+# TimesUp
 
-A new Flutter project.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Time's up is an application to help the user to manage time. It's an
+improve of a normal timer, were the user only set a time and it ends.
+Here the user can set as many timers as he wants, at the same time, and
+the timers can repeat themselves and also have a resting time.
