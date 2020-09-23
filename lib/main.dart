@@ -25,14 +25,15 @@ class MyApp extends StatelessWidget {
         primaryColor: TimesUpColors().blackChocolate,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: MyHomePage(title: 'TimesUp'),
+      home: LoginPage(title: 'TimesUp'),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+  MyHomePage({Key key, this.title, this.user}) : super(key: key);
   final String title;
+  final User user;
 
   @override
   MyHomePageState createState() => MyHomePageState();
@@ -44,7 +45,7 @@ class MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    loadUser();
+    parseItems(widget.user.items);
   }
 
   @override
@@ -54,8 +55,7 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> loadUser() {
-    return getUser("jcstange@gmail.com").then((value) {
-      print("Repository Users -> $value");
+    return getUser(widget.user.email).then((value) {
       print("username: ${value.username}");
       print("email: ${value.email}");
       print("items: ${value.items}");
@@ -64,10 +64,11 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   void setUpDialog() {
-    print("setUpDialog");
-    var nameEditText = TimesUpEditText(initialValue: "Default Timer");
+    var nameEditText = TimesUpEditText(
+        textEditingController: TextEditingController(text: "Default Timer")
+    );
     var durationEditText = TimesUpEditText(
-      initialValue: "5",
+      textEditingController: TextEditingController(text: "5"),
       maxLength: 3,
       inputType: TextInputType.number,
     );
@@ -89,9 +90,9 @@ class MyHomePageState extends State<MyHomePage> {
                           "jcstange@gmail.com",
                           Item(
                               id: Random().nextInt(1000000),
-                              name: nameEditText.state.initialValue,
+                              name: nameEditText.textEditingController.text,
                               sessionDuration: int.parse(
-                                      durationEditText.state.initialValue) *
+                                  durationEditText.textEditingController.text) *
                                   60 *
                                   1000,
                               sessions: 1,
@@ -167,3 +168,58 @@ class MyHomePageState extends State<MyHomePage> {
     );
   }
 }
+
+class LoginPage extends StatefulWidget {
+  LoginPage({Key key, this.title}) : super(key: key);
+  final String title;
+
+  @override
+  _LoginPageState createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+
+  TextEditingController textEditingController = TextEditingController(text: "Email");
+
+  Future<User> loadUser(String email) {
+    return getUser(email).then((value) {
+      print("username: ${value.username}");
+      return value;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        appBar: AppBar(
+          title: Text(widget.title),
+        ),
+        backgroundColor: TimesUpColors().cloud,
+        body: Center(
+            child:Column(
+                children: [
+                  Text("Login"),
+                  TimesUpEditText(
+                    textEditingController: textEditingController,
+                    maxLength: 100,
+                  ),
+                  FlatButton(onPressed: () {
+                    loadUser(textEditingController.text).then((value) {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(builder:(context) => MyHomePage(
+                              title: widget.title,
+                              user: value
+                          )
+                          )
+                      );
+                    });
+                  },
+                      child: Text("LOG IN")),
+                ]
+            )
+        )
+    );
+  }
+}
+

@@ -25,6 +25,8 @@ dependencies:
     sdk: flutter
   soundpool: ^1.0.1
   http: ^0.12.2
+  hive: ^1.4.4
+  
 
 
   # The following adds the Cupertino Icons font to your application.

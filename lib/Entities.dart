@@ -1,9 +1,17 @@
 import 'dart:convert';
+import 'package:hive/hive.dart';
 
-class User {
+@HiveType(typeId: 0)
+class User extends HiveObject {
+  @HiveField(0)
   String username;
+
+  @HiveField(1)
   String email;
+
+  @HiveField(3)
   List<Item> items;
+
   User({this.username, this.email, this.items});
 
   factory User.fromJson(Map<String, dynamic> jsonObject) {
@@ -26,13 +34,27 @@ class User {
   };
 }
 
+@HiveType(typeId: 1)
 class Item {
+  @HiveField(0)
   int id;
+
+  @HiveField(1)
   String name;
+
+  @HiveField(2)
   int sessionDuration;
+
+  @HiveField(3)
   int sessions;
+
+  @HiveField(4)
   int restDuration;
+
+  @HiveField(5)
   int startTime;
+
+  @HiveField(6)
   int endTime;
 
   Item({
