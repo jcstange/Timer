@@ -12,10 +12,16 @@ import '../main.dart';
 
 class TimesUpCard extends StatefulWidget {
   String title;
+  User user;
   Item item;
   MyHomePageState myHomePageState;
 
-  TimesUpCard({Key key, this.myHomePageState, this.item}) : super(key: key);
+  TimesUpCard({
+    Key key,
+    this.user,
+    this.myHomePageState,
+    this.item
+  }) : super(key: key);
 
   @override
   _TimesUpCardState createState() => _TimesUpCardState();
@@ -25,10 +31,9 @@ class _TimesUpCardState extends State<TimesUpCard> {
   DateTime start = DateTime.now();
   DateTime end;
   Duration remaining;
-  Duration paused = Duration(milliseconds: 0);
-  DateTime pauseStart;
-  DateTime pauseEnd;
-  Duration elapsed;
+  Duration elapsed = Duration(milliseconds: 0);
+  Duration totalDuration;
+  DateTime lastTick = DateTime.now();
   StreamSubscription listenToSeconds;
   Sound sound;
   Future<int> soundId;
@@ -38,37 +43,40 @@ class _TimesUpCardState extends State<TimesUpCard> {
   @override
   void initState() {
     super.initState();
-    getUsers()
-        .then((value) => print("Repository Users -> ${value.toString()}"));
+    print("initState Card");
+    totalDuration = Duration(milliseconds: widget.item.sessionDuration);
+    remaining = totalDuration;
   }
 
   void startTimer() {
     if (listenToSeconds == null) {
       start = DateTime.now();
-      var lastTime = DateTime.now();
-      listenToSeconds = Tick().second.stream.listen((second) {
-        setState(() {
-          if (ongoing) {
+      listenToSeconds = Tick().second.stream.listen((_) {
+        if (ongoing) {
+          // If paused, this thing will continue counting
+          if(DateTime.now().millisecondsSinceEpoch - lastTick.millisecondsSinceEpoch > 980) {
+            setState(() {
+              elapsed += Duration(milliseconds: 1000);
+            });
             if (getRemainingTime().inMilliseconds <= 0) {
               endTimer();
               sound.playSound(soundId);
-              ongoing = false;
-              ended = true;
+              setState(() {
+                ongoing = false;
+                ended = true;
+              });
             }
-          } else {
-            var elapsedTime = DateTime.now().millisecondsSinceEpoch -
-                lastTime.millisecondsSinceEpoch;
-            paused = paused + Duration(milliseconds: elapsedTime);
           }
-          lastTime = DateTime.now();
-        });
+        }
+        lastTick = DateTime.now();
       });
     }
   }
 
   void resetTimer() {
-    paused = Duration(milliseconds: 0);
     ended = false;
+    remaining = totalDuration;
+    elapsed = Duration(milliseconds: 0);
     listenToSeconds.cancel();
     listenToSeconds = null;
   }
@@ -86,19 +94,27 @@ class _TimesUpCardState extends State<TimesUpCard> {
 
   void play() {
     print("play");
-    startTimer();
-    sound = Sound();
-    sound.init();
-    soundId = sound.loadSound();
-    ongoing = true;
-    widget.item.startTime = DateTime.now().millisecondsSinceEpoch;
-    updateItem("jcstange@gmail.com", widget.item);
+    if(listenToSeconds != null && listenToSeconds.isPaused) {
+      print("resuming");
+      listenToSeconds.resume();
+    } else {
+      startTimer();
+      sound = Sound();
+      sound.init();
+      soundId = sound.loadSound();
+      widget.item.startTime = DateTime.now().millisecondsSinceEpoch;
+    }
+    setState(() {
+      ongoing = true;
+    });
+    //updateItem(widget.user.email, widget.item);
   }
 
   void pause() {
-    print("pause");
-    pauseStart = DateTime.now();
-    ongoing = false;
+    setState(() {
+      ongoing = false;
+    });
+    listenToSeconds.pause();
   }
 
   void replay() {
@@ -107,13 +123,9 @@ class _TimesUpCardState extends State<TimesUpCard> {
   }
 
   Duration getRemainingTime() {
-    var remainingTime;
-    if (ongoing) {
-      remainingTime = Duration(
-          milliseconds: widget.item.sessionDuration -
-              (getElapsedTime().inMilliseconds - getPausedTime().inMilliseconds));
-    } else remainingTime = Duration(milliseconds: widget.item.sessionDuration);
-    return remainingTime;
+    print('Elapsed: ${getElapsedTime().inMilliseconds}');
+    remaining = Duration(milliseconds: widget.item.sessionDuration - getElapsedTime().inMilliseconds);
+    return remaining;
   }
 
   String getTimeString(Duration duration) {
@@ -135,13 +147,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
   }
 
   Duration getElapsedTime() {
-    return Duration(
-        milliseconds: DateTime.now().millisecondsSinceEpoch -
-            start.millisecondsSinceEpoch);
-  }
-
-  Duration getPausedTime() {
-    return paused;
+    return elapsed;
   }
 
   double percentageTimeLeft() {
@@ -158,7 +164,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
         padding: EdgeInsets.all(25),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: ongoing ? TimesUpColors().bloom : ended ? TimesUpColors().blackChocolate : TimesUpColors().snow,
+          color: ongoing ? TimesUpColors().bloom : ended ? TimesUpColors().rain : TimesUpColors().snow,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -187,7 +193,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
                                 fontFamily: 'Nunito',
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
-                                color: TimesUpColors().royalBlue),
+                                color: ended ? TimesUpColors().snow : TimesUpColors().royalBlue),
                           )
                         ])),
               ],
@@ -204,7 +210,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
                             fontFamily: 'Nunito',
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: TimesUpColors().royalBlue),
+                            color: ended ? TimesUpColors().snow : TimesUpColors().royalBlue),
                       ),
                       Text(
                         getTimeString(Duration(
@@ -214,7 +220,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
                             fontFamily: 'Nunito',
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: TimesUpColors().royalBlue),
+                            color: ended ? TimesUpColors().snow : TimesUpColors().royalBlue),
                       ),
                     ])),
             Expanded(
@@ -228,18 +234,21 @@ class _TimesUpCardState extends State<TimesUpCard> {
                           : ended
                           ? Icons.replay
                           : Icons.play_circle_filled,
-                      color: TimesUpColors().royalBlue,
+                      color: ended ? TimesUpColors().snow : TimesUpColors().royalBlue,
                     ))),
             Expanded(
                 flex: 2,
                 child: FlatButton(
                     onPressed: () {
                       delete();
-                      removeItem("jcstange@gmail.com", widget.item);
+                      removeItem(
+                          widget.user.email,
+                          widget.item
+                      );
                     },
                     child: Icon(
                       Icons.delete_forever,
-                      color: TimesUpColors().royalBlue,
+                      color: ended ? TimesUpColors().snow : TimesUpColors().royalBlue,
                     ))),
           ],
         ));
