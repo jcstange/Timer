@@ -25,14 +25,15 @@ class MyApp extends StatelessWidget {
         primaryColor: TimesUpColors().blackChocolate,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: MyHomePage(title: 'TimesUp'),
+      home: LoginPage(title: 'TimesUp'),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+  MyHomePage({Key key, this.title, this.user}) : super(key: key);
   final String title;
+  final User user;
 
   @override
   MyHomePageState createState() => MyHomePageState();
@@ -44,7 +45,7 @@ class MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    loadUser();
+    parseItems(widget.user.items);
   }
 
   @override
@@ -54,8 +55,7 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> loadUser() {
-    return getUser("jcstange@gmail.com").then((value) {
-      print("Repository Users -> $value");
+    return getUser(widget.user.email).then((value) {
       print("username: ${value.username}");
       print("email: ${value.email}");
       print("items: ${value.items}");
@@ -64,34 +64,33 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   void setUpDialog() {
-    print("setUpDialog");
-    var nameEditText = TimesUpEditText(initialValue: "Default Timer");
+    var nameEditText = TimesUpEditText(
+        textEditingController: TextEditingController(text: "Default Timer"));
     var durationEditText = TimesUpEditText(
-      initialValue: "5",
+      textEditingController: TextEditingController(text: "5"),
       maxLength: 3,
       inputType: TextInputType.number,
     );
     showDialog(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (_) =>
+            AlertDialog(
               title: Text(
                 "I'm your new timer, set me up!",
-                style: TextStyle(
-                  fontFamily: "Nunito"
-                ),
+                style: TextStyle(fontFamily: "Nunito"),
               ),
               content:
-                  Column(children: <Widget>[nameEditText, durationEditText]),
+              Column(children: <Widget>[nameEditText, durationEditText]),
               actions: [
                 FlatButton(
                     onPressed: () {
                       addItem(
-                          "jcstange@gmail.com",
+                          widget.user.email,
                           Item(
                               id: Random().nextInt(1000000),
-                              name: nameEditText.state.initialValue,
-                              sessionDuration: int.parse(
-                                      durationEditText.state.initialValue) *
+                              name: nameEditText.textEditingController.text,
+                              sessionDuration: int.parse(durationEditText
+                                  .textEditingController.text) *
                                   60 *
                                   1000,
                               sessions: 1,
@@ -119,7 +118,7 @@ class MyHomePageState extends State<MyHomePage> {
   void deleteTimer(TimesUpCard timer) {
     setState(() {
       print("deleting ${timer.title}");
-      removeItem("jcstange@gmail.com", timer.item);
+      removeItem(widget.user.email, timer.item);
       reassemble();
     });
   }
@@ -150,7 +149,7 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   void parseItems(List<Item> items) {
-    if(items.isEmpty) {
+    if (items.isEmpty) {
       setState(() => listTimer.clear());
       return;
     }
@@ -160,10 +159,138 @@ class MyHomePageState extends State<MyHomePage> {
       }
     });
     //Removing deleted timers
-    var toDelete = listTimer.where((e) => !items.map((item) => item.id).toList().contains(e.item.id));
-    toDelete.forEach((element) { print("deleting ${element.item.id}"); });
+    var toDelete = listTimer.where(
+            (e) => !items.map((item) => item.id).toList().contains(e.item.id));
+    toDelete.forEach((element) {
+      print("deleting ${element.item.id}");
+    });
     setState(() =>
-        listTimer.removeWhere((e) => !items.map((item) => item.id).toList().contains(e.item.id))
+        listTimer.removeWhere(
+                (e) =>
+            !items.map((item) => item.id).toList().contains(e.item.id)));
+  }
+}
+
+class LoginPage extends StatefulWidget {
+  LoginPage({Key key, this.title}) : super(key: key);
+  final String title;
+
+  @override
+  _LoginPageState createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  TextEditingController textEditingController =
+  TextEditingController(text: "Email");
+
+  Future<User> loadUser(String email) {
+    return getUser(email).then((value) {
+      print("username: ${value.username}");
+      return value;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        appBar: AppBar(
+          title: Text(
+              widget.title,
+              style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'Nunito'
+              )
+          ),
+        ),
+        backgroundColor: TimesUpColors().snow,
+        body: Container(
+            padding: EdgeInsets.all(25.0),
+            child: Column(children: [
+              Container(
+                  margin: EdgeInsets.symmetric(vertical: 10.0),
+                  child: Text(
+                      "To login, type your email",
+                      textAlign: TextAlign.start,
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'Nunito'
+                      )
+                  )
+              ),
+              Container(
+                  margin: EdgeInsets.symmetric(vertical: 10.0),
+                  child: TimesUpEditText(
+                    textEditingController: textEditingController,
+                    maxLength: 100,
+                  )
+              ),
+              Container(
+                width: double.infinity,
+                margin: EdgeInsets.symmetric(vertical: 15.0),
+                child: RaisedButton(
+                    padding: EdgeInsets.symmetric(vertical: 15.0),
+                    color: TimesUpColors().royalBlue,
+                    onPressed: () {
+                      loadUser(textEditingController.text).then((value) {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    MyHomePage(
+                                        title: widget.title, user: value)));
+                      }).catchError((onError) {
+                        print('My error is: $onError');
+                        showDialog(
+                            context: context,
+                            builder: (_) =>
+                                AlertDialog(
+                                    title: Text(
+                                        "Account not found, would you like to create an account for ${textEditingController.text}",
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontFamily: 'Nunito'
+                                        )
+                                    ),
+                                    content: RaisedButton(
+                                        onPressed: () =>
+                                            addUser(textEditingController.text)
+                                                .then((value) {
+                                              Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          MyHomePage(
+                                                              title: widget.title,
+                                                              user: value)
+                                                  )
+                                              );
+                                            }),
+                                        child: Text(
+                                            'Create Account',
+                                            style: TextStyle(
+                                              color: TimesUpColors().snow,
+                                              fontSize: 16,
+                                              fontFamily: 'Nunito',
+                                            )
+                                        )
+                                    )
+                                )
+                        );
+                      });
+                    },
+                    child: Text(
+                      "SIGN UP / LOG IN",
+                      style: TextStyle(
+                        color: TimesUpColors().snow,
+                        fontSize: 16,
+                        fontFamily: 'Nunito',
+                      ),
+                    )),
+              ),
+            ]
+            )
+        )
     );
   }
 }
+

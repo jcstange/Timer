@@ -1,12 +1,18 @@
+import 'package:Timer/TimesUpColors.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class TimesUpEditText extends StatefulWidget {
-  final String initialValue;
+  final TextEditingController textEditingController;
   final int maxLength;
   final TextInputType inputType;
 
-  TimesUpEditText({Key key, this.initialValue, this.maxLength, this.inputType})
+  TimesUpEditText({
+    Key key,
+    this.textEditingController,
+    this.maxLength,
+    this.inputType,
+  })
       : super(key: key);
 
   _TimesUpEditTextState state;
@@ -16,15 +22,13 @@ class TimesUpEditText extends StatefulWidget {
 }
 
 class _TimesUpEditTextState extends State<TimesUpEditText> {
-  String initialValue;
   var _isEditingText = true;
-  var _editingController;
+  var initialValue;
 
   @override
   void initState() {
-    initialValue = widget.initialValue;
-    _editingController = TextEditingController(text: initialValue);
     super.initState();
+    initialValue = widget.textEditingController.text;
   }
 
   @override
@@ -37,7 +41,7 @@ class _TimesUpEditTextState extends State<TimesUpEditText> {
         onTap: () {
           setState(() {
             if (_isEditingText == false) {
-              initialValue = "";
+              widget.textEditingController.text = "";
               _isEditingText = true;
             }
           });
@@ -45,26 +49,28 @@ class _TimesUpEditTextState extends State<TimesUpEditText> {
         onChanged: (newValue) {
           setState(() {
             print(newValue);
-            initialValue = newValue;
           });
         },
         onSubmitted: (newValue) {
           setState(() {
-            initialValue = newValue;
+            widget.textEditingController.text = newValue;
             _isEditingText = false;
           });
         },
         autofocus: true,
-        controller: _editingController)
+        controller: widget.textEditingController)
         : InkWell(
         onTap: () {
           setState(() {
+            if (widget.textEditingController.text == initialValue) {
+              widget.textEditingController.text = "";
+            }
             _isEditingText = true;
           });
         },
-        child: Text(initialValue,
+        child: Text(widget.textEditingController.text,
             style: TextStyle(
-              color: Colors.black,
+              color: TimesUpColors().royalBlue,
               fontSize: 18.0,
             )));
   }
