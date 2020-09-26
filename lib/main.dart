@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'Entities.dart';
+import 'Pages/LoginPage.dart';
 import 'Repository.dart';
 import 'TimesUpColors.dart';
 import 'UIComponents/TimesUpEditText.dart';
@@ -111,7 +112,11 @@ class MyHomePageState extends State<MyHomePage> {
 
   void _addTimer(String title, Item item) {
     setState(() {
-      listTimer.add(TimesUpCard(myHomePageState: this, item: item));
+      listTimer.add(TimesUpCard(
+          myHomePageState: this,
+          user:widget.user,
+          item: item
+      ));
     });
   }
 
@@ -170,127 +175,3 @@ class MyHomePageState extends State<MyHomePage> {
             !items.map((item) => item.id).toList().contains(e.item.id)));
   }
 }
-
-class LoginPage extends StatefulWidget {
-  LoginPage({Key key, this.title}) : super(key: key);
-  final String title;
-
-  @override
-  _LoginPageState createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  TextEditingController textEditingController =
-  TextEditingController(text: "Email");
-
-  Future<User> loadUser(String email) {
-    return getUser(email).then((value) {
-      print("username: ${value.username}");
-      return value;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(
-          title: Text(
-              widget.title,
-              style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Nunito'
-              )
-          ),
-        ),
-        backgroundColor: TimesUpColors().snow,
-        body: Container(
-            padding: EdgeInsets.all(25.0),
-            child: Column(children: [
-              Container(
-                  margin: EdgeInsets.symmetric(vertical: 10.0),
-                  child: Text(
-                      "To login, type your email",
-                      textAlign: TextAlign.start,
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Nunito'
-                      )
-                  )
-              ),
-              Container(
-                  margin: EdgeInsets.symmetric(vertical: 10.0),
-                  child: TimesUpEditText(
-                    textEditingController: textEditingController,
-                    maxLength: 100,
-                  )
-              ),
-              Container(
-                width: double.infinity,
-                margin: EdgeInsets.symmetric(vertical: 15.0),
-                child: RaisedButton(
-                    padding: EdgeInsets.symmetric(vertical: 15.0),
-                    color: TimesUpColors().royalBlue,
-                    onPressed: () {
-                      loadUser(textEditingController.text).then((value) {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>
-                                    MyHomePage(
-                                        title: widget.title, user: value)));
-                      }).catchError((onError) {
-                        print('My error is: $onError');
-                        showDialog(
-                            context: context,
-                            builder: (_) =>
-                                AlertDialog(
-                                    title: Text(
-                                        "Account not found, would you like to create an account for ${textEditingController.text}",
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontFamily: 'Nunito'
-                                        )
-                                    ),
-                                    content: RaisedButton(
-                                        onPressed: () =>
-                                            addUser(textEditingController.text)
-                                                .then((value) {
-                                              Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          MyHomePage(
-                                                              title: widget.title,
-                                                              user: value)
-                                                  )
-                                              );
-                                            }),
-                                        child: Text(
-                                            'Create Account',
-                                            style: TextStyle(
-                                              color: TimesUpColors().snow,
-                                              fontSize: 16,
-                                              fontFamily: 'Nunito',
-                                            )
-                                        )
-                                    )
-                                )
-                        );
-                      });
-                    },
-                    child: Text(
-                      "SIGN UP / LOG IN",
-                      style: TextStyle(
-                        color: TimesUpColors().snow,
-                        fontSize: 16,
-                        fontFamily: 'Nunito',
-                      ),
-                    )),
-              ),
-            ]
-            )
-        )
-    );
-  }
-}
-

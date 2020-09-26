@@ -1,18 +1,16 @@
 import 'package:hive/hive.dart';
-import '../Entities.dart';
 
-class Storage {
-  void storeUser(User user) {
-    var box = Hive.box('TimesUpUser');
-    box.put('user', user);
-  }
+Future<void> storeUser(String userEmail) async {
+  var box = await Hive.openBox('TimesUpUser');
+  box.put('user', userEmail);
+}
 
-  User getUser() {
-    var box = Hive.box('TimesUpUser');
-    box.get('user');
-  }
+Future<String> getStorageUser() async {
+  var box = await Hive.openBox('TimesUpUser');
+  return box.get('user');
+}
 
-  void removeUser() {
-
-  }
+Future<void> removeStorageUser(String userEmail) async {
+  var box = await Hive.openBox('TimesUpUser');
+  box.delete('user');
 }
