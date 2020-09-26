@@ -32,8 +32,19 @@ Future<User> getUser(String user) async {
 }
 
 Future<User> addUser(String user) async {
-  final response = await http.get(
-      'https://70m2ndirwd.execute-api.eu-north-1.amazonaws.com/test/user/$user');
+  var newUser = User(
+      username: user.substring(0,user.indexOf('@')),
+      email: user,
+      items: []
+  );
+  print('newUser = $newUser');
+  final response = await http.post(
+      'https://70m2ndirwd.execute-api.eu-north-1.amazonaws.com/test/user/',
+      headers:<String, String> {
+        'Content-Type': 'application/json'
+      },
+      body: json.encode(newUser)
+  );
   if (response.statusCode == 200) {
     var responseBody = json.decode(response.body)['body'];
     return User.fromJson(responseBody);
@@ -87,6 +98,7 @@ Future<User> updateItem(String user, Item item) async {
     throw Exception("Failed to update item");
   }
 }
+
 Future<User> removeItem(String user, Item item) async {
   var request = http.Request(
       "DELETE",

@@ -49,7 +49,6 @@ class _TimesUpEditTextState extends State<TimesUpEditText> {
         onChanged: (newValue) {
           setState(() {
             print(newValue);
-            widget.textEditingController.text = newValue;
           });
         },
         onSubmitted: (newValue) {
@@ -63,6 +62,9 @@ class _TimesUpEditTextState extends State<TimesUpEditText> {
         : InkWell(
         onTap: () {
           setState(() {
+            if (widget.textEditingController.text == initialValue) {
+              widget.textEditingController.text = "";
+            }
             _isEditingText = true;
           });
         },
