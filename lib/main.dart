@@ -67,21 +67,63 @@ class MyHomePageState extends State<MyHomePage> {
   void setUpDialog() {
     var nameEditText = TimesUpEditText(
         textEditingController: TextEditingController(text: "Default Timer"));
-    var durationEditText = TimesUpEditText(
-      textEditingController: TextEditingController(text: "5"),
-      maxLength: 3,
+    var durationHoursEditText = TimesUpEditText(
+      textEditingController: TextEditingController(text: "0"),
+      maxLength: 2,
+      inputType: TextInputType.number,
+    );
+    var durationMinutesEditText = TimesUpEditText(
+      textEditingController: TextEditingController(text: "0"),
+      maxLength: 2,
+      inputType: TextInputType.number,
+    );
+    var durationSecondsEditText = TimesUpEditText(
+      textEditingController: TextEditingController(text: "0"),
+      maxLength: 2,
+      inputType: TextInputType.number,
+    );
+    var sessionsEditText = TimesUpEditText(
+      textEditingController: TextEditingController(text: "1"),
+      maxLength: 2,
+      inputType: TextInputType.number,
+    );
+    var restHoursEditText = TimesUpEditText(
+      textEditingController: TextEditingController(text: "0"),
+      maxLength: 2,
+      inputType: TextInputType.number,
+    );
+    var restMinutesEditText = TimesUpEditText(
+      textEditingController: TextEditingController(text: "0"),
+      maxLength: 2,
+      inputType: TextInputType.number,
+    );
+    var restSecondsEditText = TimesUpEditText(
+      textEditingController: TextEditingController(text: "0"),
+      maxLength: 2,
       inputType: TextInputType.number,
     );
     showDialog(
         context: context,
-        builder: (_) =>
-            AlertDialog(
+        builder: (_) => AlertDialog(
               title: Text(
                 "I'm your new timer, set me up!",
                 style: TextStyle(fontFamily: "Nunito"),
               ),
-              content:
-              Column(children: <Widget>[nameEditText, durationEditText]),
+              scrollable: true,
+              content: Column(children: [
+                Text('Duration'),
+                EditTextItem(title: 'Name: ', editText: nameEditText),
+                EditTextItem(title: 'Hours: ', editText: durationHoursEditText),
+                EditTextItem(
+                    title: 'Minutes: ', editText: durationMinutesEditText),
+                EditTextItem(
+                    title: 'Seconds: ', editText: durationSecondsEditText),
+                EditTextItem(title: 'Sessions: ', editText: sessionsEditText),
+                Text('Rest'),
+                EditTextItem(title: 'Hours: ', editText: restHoursEditText),
+                EditTextItem(title: 'Minutes: ', editText: restMinutesEditText),
+                EditTextItem(title: 'Seconds: ', editText: restSecondsEditText),
+              ]),
               actions: [
                 FlatButton(
                     onPressed: () {
@@ -90,12 +132,21 @@ class MyHomePageState extends State<MyHomePage> {
                           Item(
                               id: Random().nextInt(1000000),
                               name: nameEditText.textEditingController.text,
-                              sessionDuration: int.parse(durationEditText
-                                  .textEditingController.text) *
-                                  60 *
-                                  1000,
-                              sessions: 1,
-                              restDuration: 0,
+                              sessionDuration: calcutateTimeInMillis(
+                                  int.parse(durationHoursEditText
+                                      .textEditingController.text),
+                                  int.parse(durationMinutesEditText
+                                      .textEditingController.text),
+                                  int.parse(durationSecondsEditText
+                                      .textEditingController.text)),
+                              sessions: int.parse(
+                                  sessionsEditText.textEditingController.text),
+                              restDuration: calcutateTimeInMillis(
+                                  int.parse(restHoursEditText
+                                      .textEditingController.text),
+                                  int.parse(
+                                      restMinutesEditText.textEditingController.text),
+                                  int.parse(restSecondsEditText.textEditingController.text)),
                               startTime: 0,
                               endTime: 0));
                       Navigator.of(context).pop();
@@ -112,11 +163,8 @@ class MyHomePageState extends State<MyHomePage> {
 
   void _addTimer(String title, Item item) {
     setState(() {
-      listTimer.add(TimesUpCard(
-          myHomePageState: this,
-          user:widget.user,
-          item: item
-      ));
+      listTimer.add(
+          TimesUpCard(myHomePageState: this, user: widget.user, item: item));
     });
   }
 
@@ -165,13 +213,41 @@ class MyHomePageState extends State<MyHomePage> {
     });
     //Removing deleted timers
     var toDelete = listTimer.where(
-            (e) => !items.map((item) => item.id).toList().contains(e.item.id));
+        (e) => !items.map((item) => item.id).toList().contains(e.item.id));
     toDelete.forEach((element) {
       print("deleting ${element.item.id}");
     });
-    setState(() =>
-        listTimer.removeWhere(
-                (e) =>
-            !items.map((item) => item.id).toList().contains(e.item.id)));
+    setState(() => listTimer.removeWhere(
+        (e) => !items.map((item) => item.id).toList().contains(e.item.id)));
+  }
+
+  int calcutateTimeInMillis(int hours, int minutes, int seconds) {
+    return (hours * 60 * 60 * 1000) + (minutes * 60 * 1000) + (seconds * 1000);
+  }
+}
+
+class EditTextItem extends StatelessWidget {
+  final String title;
+  final TimesUpEditText editText;
+
+  EditTextItem({this.title, this.editText});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: <Widget>[
+        Flexible(
+            child: Text(
+          title,
+          style: TextStyle(
+            fontFamily: 'Nunito',
+            fontSize: 16,
+            color: TimesUpColors().royalBlue,
+          ),
+        )),
+        Flexible(child: editText),
+      ],
+    );
   }
 }
