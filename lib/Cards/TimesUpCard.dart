@@ -39,6 +39,8 @@ class _TimesUpCardState extends State<TimesUpCard> {
   Future<int> soundId;
   bool ongoing = false;
   bool ended = false;
+  int remainingSessions;
+  bool resting = false;
 
   @override
   void initState() {
@@ -46,6 +48,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
     print("initState Card");
     totalDuration = Duration(milliseconds: widget.item.sessionDuration);
     remaining = totalDuration;
+    remainingSessions = widget.item.sessions;
   }
 
   void startTimer() {
@@ -59,12 +62,35 @@ class _TimesUpCardState extends State<TimesUpCard> {
               elapsed += Duration(milliseconds: 1000);
             });
             if (getRemainingTime().inMilliseconds <= 0) {
-              endTimer();
-              sound.playSound(soundId);
-              setState(() {
-                ongoing = false;
-                ended = true;
-              });
+              if(remainingSessions > 1){
+                if(widget.item.sessionDuration > 0) {
+                  //Set it to rest mode
+                  if(!resting){
+                    totalDuration = Duration(milliseconds: widget.item.restDuration);
+                    elapsed = Duration(milliseconds: 0);
+                    sound.playSound(soundId);
+                    setState(() {
+                      resting = true;
+                    });
+                  } else {
+                    totalDuration = Duration(milliseconds: widget.item.sessionDuration);
+                    elapsed = Duration(milliseconds: 0);
+                    sound.playSound(soundId);
+                    setState(() {
+                      resting = false;
+                      remainingSessions -= 1;
+                    });
+                  }
+                }
+              } else {
+                endTimer();
+                sound.playSound(soundId);
+                setState(() {
+                  remainingSessions -= 1;
+                  ongoing = false;
+                  ended = true;
+                });
+              }
             }
           }
         }
@@ -124,7 +150,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
 
   Duration getRemainingTime() {
     print('Elapsed: ${getElapsedTime().inMilliseconds}');
-    remaining = Duration(milliseconds: widget.item.sessionDuration - getElapsedTime().inMilliseconds);
+    remaining = Duration(milliseconds: totalDuration.inMilliseconds - getElapsedTime().inMilliseconds);
     return remaining;
   }
 
@@ -151,8 +177,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
   }
 
   double percentageTimeLeft() {
-    var totalTime = widget.item.sessionDuration;
-    var percentage = (getRemainingTime().inMilliseconds / totalTime).toDouble();
+    var percentage = (getRemainingTime().inMilliseconds / totalDuration.inMilliseconds).toDouble();
     print(percentage);
     return percentage;
   }
@@ -183,7 +208,7 @@ class _TimesUpCardState extends State<TimesUpCard> {
                               height: 100,
                               child: CircularProgressIndicator(
                                 value: percentageTimeLeft(),
-                                valueColor: AlwaysStoppedAnimation<Color>(TimesUpColors().cerise),
+                                valueColor: AlwaysStoppedAnimation<Color>(resting ? TimesUpColors().green : TimesUpColors().cerise),
                               )
                           ),
                           Text(
@@ -194,7 +219,19 @@ class _TimesUpCardState extends State<TimesUpCard> {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
                                 color: ended ? TimesUpColors().snow : TimesUpColors().royalBlue),
-                          )
+                          ),
+                          Positioned(
+                            top: 18,
+                            child: Text(
+                              '$remainingSessions x',
+                              textAlign: TextAlign.end,
+                              style: TextStyle(
+                                  fontFamily: 'Nunito',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: ended ? TimesUpColors().snow : TimesUpColors().royalBlue),
+                            ),
+                          ),
                         ])),
               ],
             ),
@@ -213,8 +250,8 @@ class _TimesUpCardState extends State<TimesUpCard> {
                             color: ended ? TimesUpColors().snow : TimesUpColors().royalBlue),
                       ),
                       Text(
-                        getTimeString(Duration(
-                            milliseconds: widget.item.sessionDuration)),
+                        '${widget.item.sessions} x ${getTimeString(Duration(
+                            milliseconds: widget.item.sessionDuration))}',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             fontFamily: 'Nunito',
