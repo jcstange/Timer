@@ -111,18 +111,14 @@ class MyHomePageState extends State<MyHomePage> {
               ),
               scrollable: true,
               content: Column(children: [
-                Text('Duration'),
-                EditTextItem(title: 'Name: ', editText: nameEditText),
-                EditTextItem(title: 'Hours: ', editText: durationHoursEditText),
-                EditTextItem(
-                    title: 'Minutes: ', editText: durationMinutesEditText),
-                EditTextItem(
-                    title: 'Seconds: ', editText: durationSecondsEditText),
-                EditTextItem(title: 'Sessions: ', editText: sessionsEditText),
-                Text('Rest'),
-                EditTextItem(title: 'Hours: ', editText: restHoursEditText),
-                EditTextItem(title: 'Minutes: ', editText: restMinutesEditText),
-                EditTextItem(title: 'Seconds: ', editText: restSecondsEditText),
+                EditTextItem(title: '🤷', editText: nameEditText),
+                EditTextItem(title: '⏰', editText: durationHoursEditText),
+                EditTextItem(title: '⏰', editText: durationMinutesEditText),
+                EditTextItem(title: '⏰', editText: durationSecondsEditText),
+                EditTextItem(title: '✖️', editText: sessionsEditText),
+                EditTextItem(title: '💤', editText: restHoursEditText),
+                EditTextItem(title: '💤', editText: restMinutesEditText),
+                EditTextItem(title: '💤', editText: restSecondsEditText),
               ]),
               actions: [
                 FlatButton(
